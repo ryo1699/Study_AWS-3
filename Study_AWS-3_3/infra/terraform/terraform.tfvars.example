@@ -1,0 +1,6 @@
+project_name = "study-aws-3-3"
+aws_region   = "ap-northeast-1"
+slack_webhook_url = "https://hooks.slack.com/services/XXX/YYY/ZZZ"
+batch_container_image = "public.ecr.aws/docker/library/python:3.12-slim"
+eventbridge_schedule_expression = "rate(1 day)"
+

@@ -1,0 +1,4 @@
+boto3==1.35.90
+psycopg[binary]==3.2.3
+pydantic-settings==2.7.1
+

@@ -1,0 +1,108 @@
+openapi: 3.0.0
+info:
+  title: Study AWS 3 Task API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api
+    description: Local API
+paths:
+  /tasks:
+    get:
+      summary: タスク一覧の取得
+      responses:
+        "200":
+          description: タスク一覧
+    post:
+      summary: タスクの作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: 作成されたタスク
+  /tasks/{id}:
+    get:
+      summary: タスク詳細の取得
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: タスク詳細
+    put:
+      summary: タスク更新
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "200":
+          description: 更新されたタスク
+    delete:
+      summary: タスク削除
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "204":
+          description: 削除成功
+  /tasks/{id}/image-upload-url:
+    post:
+      summary: S3アップロード用presigned URL発行
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImageUploadUrlRequest"
+      responses:
+        "200":
+          description: アップロードURL
+  /tasks/{id}/image-view-url:
+    post:
+      summary: CloudFront signed URL発行
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: 閲覧URL
+components:
+  parameters:
+    TaskId:
+      in: path
+      name: id
+      required: true
+      schema:
+        type: integer
+  schemas:
+    TaskInput:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, in_progress, done]
+        pictureS3Key:
+          type: string
+          nullable: true
+    ImageUploadUrlRequest:
+      type: object
+      required: [filename]
+      properties:
+        filename:
+          type: string
+        contentType:
+          type: string
+

@@ -1,0 +1,108 @@
+name: Deploy Study AWS 3 Task 1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Study_AWS-3_1/api/**"
+      - "Study_AWS-3_1/frontend/**"
+      - ".github/workflows/study-aws-3-1-cd.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  API_SERVICE: ${{ vars.ECS_SERVICE_API }}
+  FRONTEND_SERVICE: ${{ vars.ECS_SERVICE_FRONTEND }}
+  API_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION_API }}
+  FRONTEND_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION_FRONTEND }}
+  API_REPOSITORY: ${{ vars.ECR_REPOSITORY_API }}
+  FRONTEND_REPOSITORY: ${{ vars.ECR_REPOSITORY_FRONTEND }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API
+        id: api-image
+        working-directory: Study_AWS-3_1/api
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/$API_REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REGISTRY/$API_REPOSITORY:$IMAGE_TAG"
+          echo "image=$ECR_REGISTRY/$API_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push frontend
+        id: frontend-image
+        working-directory: Study_AWS-3_1/frontend
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG"
+          echo "image=$ECR_REGISTRY/$FRONTEND_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download API task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$API_TASK_DEFINITION" \
+            --query taskDefinition > api-task-definition.json
+
+      - name: Render API task definition
+        id: render-api
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: api-task-definition.json
+          container-name: api
+          image: ${{ steps.api-image.outputs.image }}
+
+      - name: Deploy API
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-api.outputs.task-definition }}
+          service: ${{ env.API_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+
+      - name: Download frontend task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition "$FRONTEND_TASK_DEFINITION" \
+            --query taskDefinition > frontend-task-definition.json
+
+      - name: Render frontend task definition
+        id: render-frontend
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: frontend-task-definition.json
+          container-name: frontend
+          image: ${{ steps.frontend-image.outputs.image }}
+
+      - name: Deploy frontend
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-frontend.outputs.task-definition }}
+          service: ${{ env.FRONTEND_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+

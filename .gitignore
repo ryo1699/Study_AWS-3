@@ -1,0 +1,37 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+*.tfvars
+backend.hcl
+crash.log
+crash.*.log
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+local.db
+
+# Node
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# Local secrets and AWS helper files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pub
+
+# OS / editor
+.DS_Store
+.vscode/
+

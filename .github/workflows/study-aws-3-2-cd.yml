@@ -1,0 +1,116 @@
+name: Deploy Study AWS 3 Task 2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Study_AWS-3_2/api/**"
+      - "Study_AWS-3_2/frontend/**"
+      - "Study_AWS-3_2/worker/**"
+      - ".github/workflows/study-aws-3-2-cd.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ECS_CLUSTER: ${{ vars.ECS_CLUSTER }}
+  API_SERVICE: ${{ vars.ECS_SERVICE_API }}
+  FRONTEND_SERVICE: ${{ vars.ECS_SERVICE_FRONTEND }}
+  WORKER_SERVICE: ${{ vars.ECS_SERVICE_WORKER }}
+  API_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION_API }}
+  FRONTEND_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION_FRONTEND }}
+  WORKER_TASK_DEFINITION: ${{ vars.ECS_TASK_DEFINITION_WORKER }}
+  API_REPOSITORY: ${{ vars.ECR_REPOSITORY_API }}
+  FRONTEND_REPOSITORY: ${{ vars.ECR_REPOSITORY_FRONTEND }}
+  WORKER_REPOSITORY: ${{ vars.ECR_REPOSITORY_WORKER }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    strategy:
+      matrix:
+        include:
+          - name: api
+            path: Study_AWS-3_2/api
+            repository_env: API_REPOSITORY
+            task_env: API_TASK_DEFINITION
+            service_env: API_SERVICE
+            container: api
+          - name: frontend
+            path: Study_AWS-3_2/frontend
+            repository_env: FRONTEND_REPOSITORY
+            task_env: FRONTEND_TASK_DEFINITION
+            service_env: FRONTEND_SERVICE
+            container: frontend
+          - name: worker
+            path: Study_AWS-3_2/worker
+            repository_env: WORKER_REPOSITORY
+            task_env: WORKER_TASK_DEFINITION
+            service_env: WORKER_SERVICE
+            container: worker
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        id: image
+        working-directory: ${{ matrix.path }}
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+          REPOSITORY_ENV: ${{ matrix.repository_env }}
+        run: |
+          REPOSITORY="${!REPOSITORY_ENV}"
+          docker build -t "$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" .
+          docker push "$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG"
+          echo "image=$ECR_REGISTRY/$REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Download task definition
+        env:
+          TASK_ENV: ${{ matrix.task_env }}
+        run: |
+          TASK_DEFINITION="${!TASK_ENV}"
+          aws ecs describe-task-definition \
+            --task-definition "$TASK_DEFINITION" \
+            --query taskDefinition > task-definition.json
+
+      - name: Render task definition
+        id: render
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ matrix.container }}
+          image: ${{ steps.image.outputs.image }}
+
+      - name: Register task definition
+        id: register
+        run: |
+          TASK_DEFINITION_ARN="$(aws ecs register-task-definition \
+            --cli-input-json "file://${{ steps.render.outputs.task-definition }}" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text)"
+          echo "task_definition_arn=$TASK_DEFINITION_ARN" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy service
+        env:
+          SERVICE_ENV: ${{ matrix.service_env }}
+        run: |
+          SERVICE="${!SERVICE_ENV}"
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$SERVICE" \
+            --task-definition "${{ steps.register.outputs.task_definition_arn }}"

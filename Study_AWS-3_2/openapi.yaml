@@ -1,0 +1,77 @@
+openapi: 3.0.0
+info:
+  title: Study AWS 3 Task and CSV API
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000/api
+paths:
+  /tasks:
+    get:
+      summary: タスク一覧
+      responses:
+        "200":
+          description: OK
+    post:
+      summary: タスク作成
+      responses:
+        "201":
+          description: Created
+  /tasks/{id}/image-upload-url:
+    post:
+      summary: 画像アップロードURL発行
+      responses:
+        "200":
+          description: OK
+  /tasks/{id}/image-view-url:
+    post:
+      summary: 画像閲覧用CloudFront signed URL発行
+      responses:
+        "200":
+          description: OK
+  /csv-exports:
+    post:
+      summary: CSV出力ジョブ作成
+      responses:
+        "201":
+          description: CSV export job
+  /csv-exports/{jobId}:
+    get:
+      summary: CSV出力ジョブ状態取得
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: CSV export job
+  /csv-exports/{jobId}/download-url:
+    post:
+      summary: CSVダウンロード用presigned URL発行
+      parameters:
+        - in: path
+          name: jobId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: CSV download URL
+components:
+  schemas:
+    CsvExportJob:
+      type: object
+      properties:
+        id:
+          type: integer
+        status:
+          type: string
+          enum: [pending, processing, complete, failed]
+        s3Key:
+          type: string
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+

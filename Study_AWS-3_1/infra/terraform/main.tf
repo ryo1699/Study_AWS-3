@@ -205,6 +205,21 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "images" {
   }
 }
 
+resource "aws_s3_bucket_cors_configuration" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "GET", "HEAD"]
+    allowed_origins = [
+      "https://${aws_cloudfront_distribution.app.domain_name}",
+      "http://localhost:5173"
+    ]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
 resource "aws_cloudfront_origin_access_control" "images" {
   name                              = "${local.name}-images-oac"
   description                       = "OAC for private task images"
@@ -436,6 +451,10 @@ resource "aws_ecs_service" "api" {
     container_port   = 8000
   }
 
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 
@@ -456,6 +475,10 @@ resource "aws_ecs_service" "frontend" {
     target_group_arn = aws_lb_target_group.frontend.arn
     container_name   = "frontend"
     container_port   = 80
+  }
+
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 
   depends_on = [aws_lb_listener.http]

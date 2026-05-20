@@ -84,7 +84,7 @@ aws iam create-open-id-connect-provider \
     {
       "Effect": "Allow",
       "Principal": {
-        "Federated": "arn:aws:iam::ACCOUNT_ID:oidc-provider/token.actions.githubusercontent.com"
+        "Federated": "arn:aws:iam::058898200941:oidc-provider/token.actions.githubusercontent.com"
       },
       "Action": "sts:AssumeRoleWithWebIdentity",
       "Condition": {
@@ -140,28 +140,6 @@ git commit -m "Initial Study_AWS-3 implementation"
 git push -u origin main
 ```
 
-HTTPS remoteを使う場合:
-
-```bash
-git remote set-url origin https://github.com/ryo1699/Study_AWS-3.git
-```
-
-確認:
-
-```bash
-git remote -v
-git status
-```
-
-期待される出力:
-
-```text
-origin  git@github.com:ryo1699/Study_AWS-3.git (fetch)
-origin  git@github.com:ryo1699/Study_AWS-3.git (push)
-On branch main
-nothing to commit, working tree clean
-```
-
 ## GitHub Secrets / Variables
 
 GitHub repositoryの `Settings > Secrets and variables > Actions` で設定します。
@@ -170,7 +148,7 @@ Secrets:
 
 | Name | Value |
 | --- | --- |
-| `AWS_ROLE_TO_ASSUME` | `arn:aws:iam::ACCOUNT_ID:role/study-aws-3-github-actions-role` |
+| `AWS_ROLE_TO_ASSUME` | `arn:aws:iam::058898200941:role/study-aws-3-github-actions-role` |
 | `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
 
 Variables:

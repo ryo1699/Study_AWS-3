@@ -8,10 +8,10 @@ API:
 
 ```bash
 cd Study_AWS-3_1/api
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+python -m pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
 ```
 
 期待される出力:
@@ -62,6 +62,24 @@ openssl rsa -pubout -in ~/.study-aws-3/cloudfront_private_key.pem -out ~/.study-
 
 `cloudfront_public_key_pem` には公開鍵の中身を入れます。`cloudfront_private_key_pem` には秘密鍵の中身を入れます。
 
+`terraform.tfvars` には、`-----BEGIN ...-----` と `-----END ...-----` を含めて貼り付けます。
+
+```hcl
+cloudfront_public_key_pem = <<EOT
+-----BEGIN PUBLIC KEY-----
+# ~/.study-aws-3/cloudfront_public_key.pem の中身
+-----END PUBLIC KEY-----
+EOT
+
+cloudfront_private_key_pem = <<EOT
+-----BEGIN PRIVATE KEY-----
+# ~/.study-aws-3/cloudfront_private_key.pem の中身
+-----END PRIVATE KEY-----
+EOT
+```
+
+`EOT` の行には空白を入れず、秘密鍵はGit管理しないでください。
+
 ## Terraform
 
 ```bash
@@ -97,8 +115,10 @@ Apply complete! Resources: ... added, ... changed, ... destroyed.
 Terraform outputを確認します。
 
 ```bash
-terraform output bastion_public_ip
-terraform output rds_endpoint
+BASTION_PUBLIC_IP="$(terraform output -raw bastion_public_ip)"
+RDS_ENDPOINT="$(terraform output -raw rds_endpoint)"
+echo "$BASTION_PUBLIC_IP"
+echo "$RDS_ENDPOINT"
 ```
 
 SQLを踏み台へコピーします。
@@ -106,21 +126,21 @@ SQLを踏み台へコピーします。
 ```bash
 scp -i /Users/ryo/Documents/研究室/勉強会_AWS_3/AWS_resources/ryo-key.pem \
   ../../api/migrations/001_create_tasks.sql \
-  ec2-user@BASTION_PUBLIC_IP:/home/ec2-user/001_create_tasks.sql
+  ec2-user@"$BASTION_PUBLIC_IP":/home/ec2-user/001_create_tasks.sql
 ```
 
 踏み台へ入ります。
 
 ```bash
 ssh -i /Users/ryo/Documents/研究室/勉強会_AWS_3/AWS_resources/ryo-key.pem \
-  ec2-user@BASTION_PUBLIC_IP
+  ec2-user@"$BASTION_PUBLIC_IP"
 ```
 
 踏み台内:
 
 ```bash
 sudo dnf install -y postgresql15
-psql "postgresql://app_user:YOUR_DB_PASSWORD@RDS_ENDPOINT:5432/tasks" \
+psql "postgresql://app_user:YOUR_DB_PASSWORD@RDS_ENDPOINT_FROM_TERRAFORM:5432/tasks" \
   -f /home/ec2-user/001_create_tasks.sql
 ```
 

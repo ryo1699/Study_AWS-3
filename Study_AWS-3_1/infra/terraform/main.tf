@@ -296,11 +296,23 @@ resource "aws_iam_role_policy" "api_s3" {
 
   policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [{
-      Effect   = "Allow"
-      Action   = ["s3:PutObject", "s3:GetObject"]
-      Resource = "${aws_s3_bucket.images.arn}/private-images/*"
-    }]
+    Statement = [
+      {
+        Effect   = "Allow"
+        Action   = ["s3:PutObject", "s3:GetObject"]
+        Resource = "${aws_s3_bucket.images.arn}/private-images/*"
+      },
+      {
+        Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.images.arn
+        Condition = {
+          StringLike = {
+            "s3:prefix" = ["private-images/*"]
+          }
+        }
+      }
+    ]
   })
 }
 

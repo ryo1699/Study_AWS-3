@@ -343,6 +343,16 @@ resource "aws_iam_role_policy" "api_s3" {
       },
       {
         Effect   = "Allow"
+        Action   = ["s3:ListBucket"]
+        Resource = aws_s3_bucket.images.arn
+        Condition = {
+          StringLike = {
+            "s3:prefix" = ["private-images/*"]
+          }
+        }
+      },
+      {
+        Effect   = "Allow"
         Action   = ["sqs:SendMessage", "sqs:ReceiveMessage", "sqs:DeleteMessage", "sqs:GetQueueAttributes"]
         Resource = aws_sqs_queue.csv_export.arn
       }

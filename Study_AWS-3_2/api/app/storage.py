@@ -46,7 +46,7 @@ def image_object_exists(s3_key: str) -> bool:
         _s3_client().head_object(Bucket=settings.image_bucket_name, Key=s3_key)
     except ClientError as exc:
         status_code = exc.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
-        if status_code == 404:
+        if status_code in (403, 404):
             return False
         raise RuntimeError(f"Failed to check image object: {exc}") from exc
     return True

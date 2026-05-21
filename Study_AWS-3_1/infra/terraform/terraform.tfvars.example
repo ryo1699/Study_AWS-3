@@ -1,4 +1,6 @@
 project_name              = "study-aws-3-1"
+resource_owner            = "ryo"
+bucket_name_suffix        = "ryo1699"
 aws_region                = "ap-northeast-1"
 db_password               = "CHANGE_ME"
 allowed_ssh_cidr          = "153.246.177.112/32"
@@ -6,4 +8,3 @@ bastion_key_name          = "ryo-key"
 cloudfront_public_key_pem = "-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----"
 cloudfront_private_key_pem = "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
 maintenance_mode_enabled  = false
-

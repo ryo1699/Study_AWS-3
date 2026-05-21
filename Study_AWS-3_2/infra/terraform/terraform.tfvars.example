@@ -1,4 +1,6 @@
 project_name              = "study-aws-3-2"
+resource_owner            = "ryo"
+bucket_name_suffix        = "ryo1699"
 aws_region                = "ap-northeast-1"
 db_password               = "CHANGE_ME"
 allowed_ssh_cidr          = "153.246.177.112/32"

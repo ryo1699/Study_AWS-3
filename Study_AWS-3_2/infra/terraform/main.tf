@@ -1,5 +1,5 @@
 locals {
-  name = var.project_name
+  name = "${var.resource_owner}-${var.project_name}"
 }
 
 data "aws_availability_zones" "available" {
@@ -172,26 +172,28 @@ resource "aws_security_group" "rds" {
 resource "aws_ecr_repository" "api" {
   name                 = "${local.name}-api"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
   image_scanning_configuration { scan_on_push = true }
 }
 
 resource "aws_ecr_repository" "frontend" {
   name                 = "${local.name}-frontend"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
   image_scanning_configuration { scan_on_push = true }
 }
 
 resource "aws_ecr_repository" "worker" {
   name                 = "${local.name}-worker"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
   image_scanning_configuration { scan_on_push = true }
 }
 
 resource "aws_s3_bucket" "images" {
-  bucket = "${local.name}-images-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.name}-images-${var.bucket_name_suffix}"
+  force_destroy = true
 }
-
-data "aws_caller_identity" "current" {}
 
 resource "aws_s3_bucket_public_access_block" "images" {
   bucket                  = aws_s3_bucket.images.id
@@ -211,8 +213,24 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "images" {
   }
 }
 
+resource "aws_s3_bucket_cors_configuration" "images" {
+  bucket = aws_s3_bucket.images.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT", "GET", "HEAD"]
+    allowed_origins = [
+      "https://${aws_cloudfront_distribution.app.domain_name}",
+      "http://localhost:5173"
+    ]
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
 resource "aws_s3_bucket" "csv_exports" {
-  bucket = "${local.name}-csv-${data.aws_caller_identity.current.account_id}"
+  bucket        = "${local.name}-csv-${var.bucket_name_suffix}"
+  force_destroy = true
 }
 
 resource "aws_s3_bucket_public_access_block" "csv_exports" {
@@ -517,6 +535,10 @@ resource "aws_ecs_service" "api" {
     container_port   = 8000
   }
 
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 
@@ -539,6 +561,10 @@ resource "aws_ecs_service" "frontend" {
     container_port   = 80
   }
 
+  lifecycle {
+    ignore_changes = [task_definition]
+  }
+
   depends_on = [aws_lb_listener.http]
 }
 
@@ -553,6 +579,10 @@ resource "aws_ecs_service" "worker" {
     subnets          = aws_subnet.private[*].id
     security_groups  = [aws_security_group.ecs.id]
     assign_public_ip = false
+  }
+
+  lifecycle {
+    ignore_changes = [task_definition]
   }
 }
 

@@ -10,6 +10,18 @@ variable "project_name" {
   default     = "study-aws-3-2"
 }
 
+variable "resource_owner" {
+  type        = string
+  description = "Owner prefix included in resource names."
+  default     = "ryo"
+}
+
+variable "bucket_name_suffix" {
+  type        = string
+  description = "Globally unique suffix for S3 bucket names."
+  default     = "ryo1699"
+}
+
 variable "db_username" {
   type        = string
   description = "RDS application username."

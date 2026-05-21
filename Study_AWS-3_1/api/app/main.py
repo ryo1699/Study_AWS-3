@@ -12,7 +12,7 @@ from .schemas import (
     TaskInput,
     TaskResponse,
 )
-from .storage import create_cloudfront_signed_url, create_upload_url
+from .storage import create_cloudfront_signed_url, create_upload_url, image_object_exists
 from .config import settings
 
 app = FastAPI(title="Study AWS 3 Task API", version="1.0.0")
@@ -122,8 +122,6 @@ def issue_image_upload_url(
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
-    task.picture_s3_key = s3_key
-    db.commit()
     return ImageUploadUrlResponse(uploadUrl=upload_url, s3Key=s3_key, expiresIn=settings.upload_url_expires_seconds)
 
 
@@ -140,8 +138,11 @@ def issue_image_view_url(task_id: int, db: Session = Depends(get_db)) -> ImageVi
         raise HTTPException(status_code=404, detail="画像が登録されていません")
 
     try:
+        if not image_object_exists(task.picture_s3_key):
+            task.picture_s3_key = None
+            db.commit()
+            raise HTTPException(status_code=404, detail="画像ファイルがS3に存在しません。もう一度アップロードしてください")
         picture_url = create_cloudfront_signed_url(task.picture_s3_key)
     except RuntimeError as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
     return ImageViewUrlResponse(pictureUrl=picture_url, expiresIn=settings.view_url_expires_seconds)
-

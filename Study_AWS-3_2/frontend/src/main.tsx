@@ -100,6 +100,15 @@ function App() {
       body: selectedFile
     });
     if (!putResponse.ok) throw new Error(`S3 upload failed: ${putResponse.status}`);
+    await request<Task>("/api/tasks/" + selectedTask.id, {
+      method: "PUT",
+      body: JSON.stringify({
+        title: selectedTask.title,
+        description: selectedTask.description,
+        status: selectedTask.status,
+        pictureS3Key: upload.s3Key
+      })
+    });
     setSelectedFile(null);
     setMessage(`Image uploaded for task #${selectedTask.id}`);
     await loadTasks();

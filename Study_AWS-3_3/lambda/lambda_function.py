@@ -2,13 +2,11 @@ import json
 import os
 import urllib.request
 
-import boto3
-
-
-ssm = boto3.client("ssm")
-
 
 def get_webhook_url() -> str:
+    import boto3
+
+    ssm = boto3.client("ssm")
     parameter_name = os.environ["SLACK_WEBHOOK_PARAMETER_NAME"]
     response = ssm.get_parameter(Name=parameter_name, WithDecryption=True)
     return response["Parameter"]["Value"]
@@ -34,4 +32,3 @@ def lambda_handler(event, context):
     with urllib.request.urlopen(request, timeout=10) as response:
         response.read()
     return {"ok": True}
-

@@ -8,7 +8,7 @@ Batch:
 
 ```bash
 cd Study_AWS-3_3/batch
-python -m app.main
+python3 -m app.main
 ```
 
 期待される出力:
@@ -21,7 +21,7 @@ Slack Lambdaのメッセージ整形:
 
 ```bash
 cd Study_AWS-3_3/lambda
-python - <<'PY'
+python3 - <<'PY'
 import json
 from lambda_function import build_message
 with open("local_event.json") as f:
@@ -85,8 +85,8 @@ aws ecr get-login-password --region "$AWS_REGION" \
   | docker login --username AWS --password-stdin "$ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
 
 cd ../../batch
-docker build -t "$REPO_URL:latest" .
-docker push "$REPO_URL:latest"
+docker build -t "${REPO_URL}:latest" .
+docker push "${REPO_URL}:latest"
 ```
 
 `terraform.tfvars` の `batch_container_image` を次のように更新し、再applyします。

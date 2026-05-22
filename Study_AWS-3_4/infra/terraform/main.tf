@@ -176,7 +176,12 @@ resource "aws_iam_role_policy" "github_actions" {
           "ec2:StartInstances",
           "ec2:StopInstances"
         ]
-        Resource = aws_instance.runner.arn
+        Resource = "*"
+        Condition = {
+          StringEquals = {
+            "aws:ResourceTag/Project" = var.project_name
+          }
+        }
       },
       {
         Effect = "Allow"

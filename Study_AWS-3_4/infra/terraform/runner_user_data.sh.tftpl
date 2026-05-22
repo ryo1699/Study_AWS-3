@@ -5,7 +5,6 @@ RUNNER_ARCH="${runner_arch}"
 RUNNER_HOME="/opt/actions-runner"
 RUNNER_USER="actions-runner"
 
-dnf update -y
 dnf install -y docker git jq tar gzip libicu curl sudo
 systemctl enable --now docker
 
@@ -28,7 +27,6 @@ if [ ! -x "$${RUNNER_HOME}/config.sh" ]; then
 
   tar -xzf "$${archive}" -C "$${RUNNER_HOME}"
   chown -R "$${RUNNER_USER}:$${RUNNER_USER}" "$${RUNNER_HOME}"
-  "$${RUNNER_HOME}/bin/installdependencies.sh" || true
 fi
 
 cat >/usr/local/bin/start-github-runner <<'SCRIPT'
@@ -72,3 +70,4 @@ nohup sudo -u "$${RUNNER_USER}" ./run.sh >/var/log/github-actions-runner.log 2>&
 SCRIPT
 
 chmod +x /usr/local/bin/start-github-runner
+"$${RUNNER_HOME}/bin/installdependencies.sh" || true

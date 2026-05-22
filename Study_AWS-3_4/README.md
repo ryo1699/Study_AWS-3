@@ -74,6 +74,15 @@ GitHub Actionsがすぐ失敗する場合は、失敗したrunを開いて `Star
 | `Create GitHub runner registration token` | `STUDY_AWS_3_4_GH_RUNNER_TOKEN` のrepository accessとAdministration write権限 |
 | `Wait for SSM and runner bootstrap` | EC2のSSM online状態、public subnetの外向き通信、user data完了 |
 
+`Wait for SSM and runner bootstrap` が `NOT_READY` のまま失敗する場合は、同じstepのログに `cloud_init_output_tail` が出ます。そこにEC2のuser data失敗理由が表示されます。
+
+`runner_user_data.sh.tftpl` を変更した後は、EC2のuser dataを反映するために再applyします。この構成では `user_data_replace_on_change = true` にしているため、user data変更時はrunner用EC2が作り直されます。
+
+```bash
+cd Study_AWS-3_4/infra/terraform
+terraform apply
+```
+
 ## GitHub Actions実行
 
 手動実行する場合:

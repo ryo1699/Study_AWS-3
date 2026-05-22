@@ -66,7 +66,32 @@ jobs:
 
       - name: Start EC2 instance
         run: |
-          aws ec2 start-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+          state="$(
+            aws ec2 describe-instances \
+              --instance-ids "$EC2_RUNNER_INSTANCE_ID" \
+              --query "Reservations[0].Instances[0].State.Name" \
+              --output text
+          )"
+
+          echo "Current EC2 state: $state"
+
+          case "$state" in
+            stopped)
+              aws ec2 start-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+              ;;
+            stopping)
+              aws ec2 wait instance-stopped --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+              aws ec2 start-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+              ;;
+            pending|running)
+              echo "EC2 instance is already $state; skip start-instances."
+              ;;
+            *)
+              echo "EC2 instance is in unsupported state: $state" >&2
+              exit 1
+              ;;
+          esac
+
           aws ec2 wait instance-running --instance-ids "$EC2_RUNNER_INSTANCE_ID"
           aws ec2 wait instance-status-ok --instance-ids "$EC2_RUNNER_INSTANCE_ID"
 

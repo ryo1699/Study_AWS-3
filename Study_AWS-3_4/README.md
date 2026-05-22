@@ -81,6 +81,8 @@ cd Study_AWS-3_4/infra/terraform
 terraform apply
 ```
 
+`Start EC2 instance` で `IncorrectInstanceState` が出る場合は、前回のworkflowでEC2が起動中、実行中、または停止中のまま次のrunを始めた状態です。workflowはEC2状態を確認し、`stopped` のときだけ起動するようにしています。
+
 `Wait for SSM and runner bootstrap` が `NOT_READY` のまま失敗する場合は、同じstepのログに `cloud_init_output_tail` が出ます。そこにEC2のuser data失敗理由が表示されます。
 
 `runner_user_data.sh.tftpl` を変更した後は、EC2のuser dataを反映するために再applyします。この構成では `user_data_replace_on_change = true` にしているため、user data変更時はrunner用EC2が作り直されます。

@@ -296,4 +296,27 @@ jobs:
 
       - name: Stop EC2 instance
         run: |
-          aws ec2 stop-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+          state="$(
+            aws ec2 describe-instances \
+              --instance-ids "$EC2_RUNNER_INSTANCE_ID" \
+              --query "Reservations[0].Instances[0].State.Name" \
+              --output text
+          )"
+
+          echo "Current EC2 state: $state"
+
+          case "$state" in
+            running|pending)
+              aws ec2 stop-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+              ;;
+            stopping|stopped)
+              echo "EC2 instance is already $state; skip stop-instances."
+              ;;
+            terminated|shutting-down)
+              echo "EC2 instance is $state. Update STUDY_AWS_3_4_RUNNER_INSTANCE_ID with the latest Terraform output."
+              ;;
+            *)
+              echo "EC2 instance is in unsupported state: $state" >&2
+              exit 1
+              ;;
+          esac

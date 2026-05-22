@@ -30,6 +30,34 @@ jobs:
         run: |
           echo "runner-label=$RUNNER_LABEL" >> "$GITHUB_OUTPUT"
 
+      - name: Check required settings
+        env:
+          TASK4_AWS_ROLE_TO_ASSUME: ${{ secrets.STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME }}
+          TASK4_GH_RUNNER_TOKEN: ${{ secrets.STUDY_AWS_3_4_GH_RUNNER_TOKEN }}
+        run: |
+          missing=0
+
+          check_value() {
+            name="$1"
+            value="$2"
+            if [ -z "$value" ]; then
+              echo "::error::$name is not set."
+              missing=1
+            else
+              echo "$name is set."
+            fi
+          }
+
+          check_value "secret STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME" "$TASK4_AWS_ROLE_TO_ASSUME"
+          check_value "secret STUDY_AWS_3_4_GH_RUNNER_TOKEN" "$TASK4_GH_RUNNER_TOKEN"
+          check_value "variable STUDY_AWS_3_4_AWS_REGION" "$AWS_REGION"
+          check_value "variable STUDY_AWS_3_4_RUNNER_INSTANCE_ID" "$EC2_RUNNER_INSTANCE_ID"
+          check_value "variable STUDY_AWS_3_4_ECR_REPOSITORY" "$ECR_REPOSITORY"
+
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:

@@ -62,6 +62,18 @@ Variables:
 
 `STUDY_AWS_3_4_GH_RUNNER_TOKEN` はrepository self-hosted runnerのregistration tokenを作れる権限が必要です。fine-grained tokenを使う場合は対象repositoryを限定し、Administrationのwrite権限を付けます。
 
+GitHub Actionsがすぐ失敗する場合は、失敗したrunを開いて `Start EC2 runner` jobのどのstepで落ちたか確認します。
+
+よくある原因:
+
+| 失敗step | 見直す値 |
+| --- | --- |
+| `Check required settings` | 上記Secrets / Variablesの名前と値 |
+| `Configure AWS credentials` | `STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME`、OIDC provider、branch名 |
+| `Start EC2 instance` | `STUDY_AWS_3_4_RUNNER_INSTANCE_ID`、課題4用IAM RoleのEC2権限 |
+| `Create GitHub runner registration token` | `STUDY_AWS_3_4_GH_RUNNER_TOKEN` のrepository accessとAdministration write権限 |
+| `Wait for SSM and runner bootstrap` | EC2のSSM online状態、public subnetの外向き通信、user data完了 |
+
 ## GitHub Actions実行
 
 手動実行する場合:

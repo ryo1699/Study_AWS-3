@@ -5,7 +5,7 @@ RUNNER_ARCH="${runner_arch}"
 RUNNER_HOME="/opt/actions-runner"
 RUNNER_USER="actions-runner"
 
-dnf install -y docker git jq tar gzip libicu curl sudo
+dnf install -y docker git jq tar gzip libicu sudo
 systemctl enable --now docker
 
 if ! id "$${RUNNER_USER}" >/dev/null 2>&1; then

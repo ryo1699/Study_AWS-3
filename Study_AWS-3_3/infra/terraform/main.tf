@@ -62,6 +62,7 @@ resource "aws_security_group" "ecs_task" {
 resource "aws_ecr_repository" "batch" {
   name                 = "${local.name}-batch"
   image_tag_mutability = "MUTABLE"
+  force_delete         = true
   image_scanning_configuration { scan_on_push = true }
 }
 

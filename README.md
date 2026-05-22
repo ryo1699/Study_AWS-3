@@ -9,6 +9,7 @@ Study_AWS-3/
   Study_AWS-3_1/  # 画像を安全に扱うTask API + React UI + ECS/RDS/S3/CloudFront/WAF
   Study_AWS-3_2/  # CSV非同期出力 API + SQS + Worker + S3
   Study_AWS-3_3/  # EventBridge + Step Functions + ECS RunTask + Slack通知
+  Study_AWS-3_4/  # EC2 self-hosted runnerでDocker build GitHub Actionsを実行
 ```
 
 ## 事前に決めた値
@@ -150,16 +151,21 @@ Secrets:
 | --- | --- |
 | `AWS_ROLE_TO_ASSUME` | `arn:aws:iam::058898200941:role/study-aws-3-github-actions-role` |
 | `SLACK_WEBHOOK_URL` | Slack Incoming Webhook URL |
+| `STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME` | 課題4用のGitHub Actions OIDC Role ARN |
+| `STUDY_AWS_3_4_GH_RUNNER_TOKEN` | 課題4でself-hosted runner registration tokenを作るGitHub token |
 
 Variables:
 
 | Name | Value |
 | --- | --- |
 | `AWS_REGION` | `ap-northeast-1` |
+| `STUDY_AWS_3_4_AWS_REGION` | `ap-northeast-1` |
 | `ECR_REPOSITORY_API` | Terraform outputのAPI ECR repository名 |
 | `ECR_REPOSITORY_FRONTEND` | Terraform outputのfrontend ECR repository名 |
 | `ECR_REPOSITORY_WORKER` | Terraform outputのworker ECR repository名 |
 | `ECR_REPOSITORY_BATCH` | Terraform outputのbatch ECR repository名 |
+| `STUDY_AWS_3_4_ECR_REPOSITORY` | Terraform outputの課題4 Docker build ECR repository名 |
+| `STUDY_AWS_3_4_RUNNER_INSTANCE_ID` | Terraform outputの課題4 EC2 runner instance ID |
 | `ECS_CLUSTER` | Terraform outputのECS cluster名 |
 | `ECS_SERVICE_API` | Terraform outputのAPI service名 |
 | `ECS_SERVICE_FRONTEND` | Terraform outputのfrontend service名 |
@@ -212,4 +218,3 @@ Your branch is up to date with 'origin/main'.
 ```text
 /Users/ryo/Documents/研究室/勉強会_AWS_3/AWS_resources/ryo-key.pem
 ```
-

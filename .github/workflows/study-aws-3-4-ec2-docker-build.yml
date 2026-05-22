@@ -1,0 +1,205 @@
+name: Build Docker Image on EC2 Runner
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Study_AWS-3_4/**"
+      - ".github/workflows/study-aws-3-4-ec2-docker-build.yml"
+  workflow_dispatch:
+
+env:
+  AWS_REGION: ${{ vars.STUDY_AWS_3_4_AWS_REGION }}
+  EC2_RUNNER_INSTANCE_ID: ${{ vars.STUDY_AWS_3_4_RUNNER_INSTANCE_ID }}
+  RUNNER_LABEL: study-aws-3-4
+  ECR_REPOSITORY: ${{ vars.STUDY_AWS_3_4_ECR_REPOSITORY }}
+
+jobs:
+  start-ec2-runner:
+    name: Start EC2 runner
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      runner-label: ${{ steps.runner-context.outputs.runner-label }}
+
+    steps:
+      - name: Set runner context
+        id: runner-context
+        run: |
+          echo "runner-label=$RUNNER_LABEL" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Start EC2 instance
+        run: |
+          aws ec2 start-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+          aws ec2 wait instance-running --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+          aws ec2 wait instance-status-ok --instance-ids "$EC2_RUNNER_INSTANCE_ID"
+
+      - name: Wait for SSM and runner bootstrap
+        run: |
+          for attempt in $(seq 1 60); do
+            ping_status="$(
+              aws ssm describe-instance-information \
+                --filters "Key=InstanceIds,Values=$EC2_RUNNER_INSTANCE_ID" \
+                --query "InstanceInformationList[0].PingStatus" \
+                --output text 2>/dev/null || true
+            )"
+
+            if [ "$ping_status" = "Online" ]; then
+              command_id="$(
+                aws ssm send-command \
+                  --instance-ids "$EC2_RUNNER_INSTANCE_ID" \
+                  --document-name "AWS-RunShellScript" \
+                  --comment "Check GitHub runner bootstrap" \
+                  --parameters "commands=[\"test -x /usr/local/bin/start-github-runner && docker --version\"]" \
+                  --query "Command.CommandId" \
+                  --output text
+              )"
+
+              if aws ssm wait command-executed \
+                --command-id "$command_id" \
+                --instance-id "$EC2_RUNNER_INSTANCE_ID"; then
+                exit 0
+              fi
+            fi
+
+            sleep 10
+          done
+
+          echo "EC2 instance did not finish SSM/bootstrap readiness in time." >&2
+          exit 1
+
+      - name: Create GitHub runner registration token
+        id: runner-token
+        env:
+          GH_RUNNER_TOKEN: ${{ secrets.STUDY_AWS_3_4_GH_RUNNER_TOKEN }}
+        run: |
+          token="$(
+            curl -fsSL \
+              -X POST \
+              -H "Accept: application/vnd.github+json" \
+              -H "Authorization: Bearer ${GH_RUNNER_TOKEN}" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runners/registration-token" \
+              | jq -r '.token'
+          )"
+
+          if [ -z "$token" ] || [ "$token" = "null" ]; then
+            echo "Failed to create GitHub runner registration token." >&2
+            exit 1
+          fi
+
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$GITHUB_OUTPUT"
+
+      - name: Register ephemeral runner through SSM
+        env:
+          GH_RUNNER_TOKEN: ${{ secrets.STUDY_AWS_3_4_GH_RUNNER_TOKEN }}
+          REGISTRATION_TOKEN: ${{ steps.runner-token.outputs.token }}
+        run: |
+          runner_name="${RUNNER_LABEL}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+
+          command_id="$(
+            aws ssm send-command \
+              --instance-ids "$EC2_RUNNER_INSTANCE_ID" \
+              --document-name "AWS-RunShellScript" \
+              --comment "Register ${runner_name} as an ephemeral GitHub Actions runner" \
+              --parameters "commands=[\"sudo /usr/local/bin/start-github-runner '${repo_url}' '${REGISTRATION_TOKEN}' '${runner_name}' '${RUNNER_LABEL}'\"]" \
+              --query "Command.CommandId" \
+              --output text
+          )"
+
+          aws ssm wait command-executed \
+            --command-id "$command_id" \
+            --instance-id "$EC2_RUNNER_INSTANCE_ID"
+
+          for attempt in $(seq 1 30); do
+            status="$(
+              curl -fsSL \
+                -H "Accept: application/vnd.github+json" \
+                -H "Authorization: Bearer ${GH_RUNNER_TOKEN}" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/actions/runners?per_page=100" \
+                | jq -r --arg name "$runner_name" '.runners[] | select(.name == $name) | .status' \
+                | head -n 1
+            )"
+
+            if [ "$status" = "online" ]; then
+              echo "Runner ${runner_name} is online."
+              exit 0
+            fi
+
+            sleep 5
+          done
+
+          echo "Runner ${runner_name} did not become online in time." >&2
+          exit 1
+
+  docker-build-on-ec2:
+    name: Docker build on EC2
+    needs: start-ec2-runner
+    runs-on:
+      - self-hosted
+      - linux
+      - x64
+      - ${{ needs.start-ec2-runner.outputs.runner-label }}
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        working-directory: Study_AWS-3_4/app
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker build \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" \
+            -t "$ECR_REGISTRY/$ECR_REPOSITORY:latest" \
+            .
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+  stop-ec2-runner:
+    name: Stop EC2 runner
+    needs:
+      - start-ec2-runner
+      - docker-build-on-ec2
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.STUDY_AWS_3_4_AWS_ROLE_TO_ASSUME }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Stop EC2 instance
+        run: |
+          aws ec2 stop-instances --instance-ids "$EC2_RUNNER_INSTANCE_ID"

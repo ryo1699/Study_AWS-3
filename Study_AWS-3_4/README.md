@@ -92,6 +92,8 @@ terraform output -raw runner_instance_id
 
 GitHub repositoryの `Settings > Secrets and variables > Actions > Variables` で、`STUDY_AWS_3_4_RUNNER_INSTANCE_ID` を上の値に更新します。
 
+`InvalidInstanceID.Malformed` が出る場合は、GitHub Variable `STUDY_AWS_3_4_RUNNER_INSTANCE_ID` に余計な文字が入っています。値は `i-` から始まるinstance IDだけにします。ターミナルで `terraform output -raw runner_instance_id` を実行したとき、末尾に `%` が見えることがありますが、これはzshの表示でinstance IDではありません。GitHub Variableには `%` を入れません。
+
 `Wait for SSM and runner bootstrap` が `NOT_READY` のまま失敗する場合は、同じstepのログに `cloud_init_output_tail` が出ます。そこにEC2のuser data失敗理由が表示されます。
 
 `runner_user_data.sh.tftpl` を変更した後は、EC2のuser dataを反映するために再applyします。この構成では `user_data_replace_on_change = true` にしているため、user data変更時はrunner用EC2が作り直されます。

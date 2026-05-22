@@ -54,6 +54,11 @@ jobs:
           check_value "variable STUDY_AWS_3_4_RUNNER_INSTANCE_ID" "$EC2_RUNNER_INSTANCE_ID"
           check_value "variable STUDY_AWS_3_4_ECR_REPOSITORY" "$ECR_REPOSITORY"
 
+          if [ -n "$EC2_RUNNER_INSTANCE_ID" ] && ! echo "$EC2_RUNNER_INSTANCE_ID" | grep -Eq '^i-[0-9a-f]{8,17}$'; then
+            echo "::error::variable STUDY_AWS_3_4_RUNNER_INSTANCE_ID must be a plain EC2 instance id like i-0123456789abcdef0. Current value: $EC2_RUNNER_INSTANCE_ID"
+            missing=1
+          fi
+
           if [ "$missing" -ne 0 ]; then
             exit 1
           fi
